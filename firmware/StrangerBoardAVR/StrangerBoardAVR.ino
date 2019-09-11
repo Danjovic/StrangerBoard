@@ -650,6 +650,71 @@ void printTime(uint8_t h, uint8_t m) {
     
   }
 }
+ 
+ 
+// show time in portuguese
+ 
+void showTimeBR(uint8_t h, uint8_t m) {
+
+  uint8_t d = m / 10 ;
+  uint8_t u = m - (m / 10) * 10;
+  uint8_t dv = d * 10 + u;
+
+  //  uint8_t h2 = h;
+  bool oclock = false;
+
+  // Serial.print("it is") ;
+
+  // Horas
+  if (h == 0) {
+    Serial.print(" meia noite");
+  } else if (h == 12) {
+    Serial.print(" meio dia");
+  } else { //
+
+    if (h > 12) h -= 12; // relogio de 12 horas
+
+    if (h < 3) { // uma, duas
+      Serial.print(uma_duas[h] );
+    } else {
+      Serial.print(unidades[h]);
+    }
+  } //
+
+  if ((m == 0) && (h != 12) && (h != 0)   ) { // horas inteiras
+    Serial.print (" hora");
+    if (h > 1) Serial.print ("s");
+
+  } else { // horas quebradas
+
+    if (d > 0)
+      Serial.print (" e");
+
+    if (m == 30) { // meia hora
+      Serial.print (" meia");
+    } else { // 01-29, 31-59 minutos
+
+
+
+      if (u == 0)
+        Serial.print(dezenas[d]); // dezenas inteiras
+      else {
+        if ( (dv > 10) && (dv < 20) ) {
+          Serial.print(dez_vinte[ dv - 10 ] );
+        } else {
+          Serial.print (dezenas[d]);
+          Serial.print (" e");
+          Serial.print (unidades[u]);
+        }
+      }
+
+
+    }
+  }
+
+
+} 
+ 
   
 #endif
 
