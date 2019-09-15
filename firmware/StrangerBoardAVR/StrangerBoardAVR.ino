@@ -37,8 +37,8 @@
                           // between subsequent characters.  
 
 
-#define PIN        12   // 
-#define NUMPIXELS  30   // Amount of neopixels in the board
+#define PIN        9    // 
+#define NUMPIXELS  26   // Amount of neopixels in the board
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,7 +106,7 @@ enum {  _BR=1,
 ////////////////////////////////////////////////////////////////////////////////
 // Variables/Objects
 uint8_t language = _BR;
-uint8_t pcf8563regiters[15];
+//uint8_t pcf8563regiters[15];
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 uRTCLib rtc;
 
@@ -457,8 +457,11 @@ void putpixel (char letra) {
 
 
   // blank the board  
-  pixels.clear();
-
+  pixels.clear(); // clear board
+  pixels.show();  // 
+  delay(100);     // wait some time before lit another character
+                  // to blink on repeated characters 
+  
   // select a position to lit
   if ( (letra >= 'a') && (letra <= 'z'))  // very crude uppercase conversion
     letra = letra - 32;
