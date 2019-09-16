@@ -98,7 +98,7 @@ static const char * dezenas[]   = { "", " Dez", " Vinte", " Trinta", " Quarenta"
 const uint8_t daysPerMonth[12] = {  31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 enum {  _BR=1,
-        _EN
+        _EN=2
   } Language;
 
 
@@ -106,7 +106,7 @@ enum {  _BR=1,
 ////////////////////////////////////////////////////////////////////////////////
 // Variables/Objects
 uint8_t language = _BR;
-//uint8_t pcf8563regiters[15];
+bool clockActive = true;
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 uRTCLib rtc;
 
@@ -132,6 +132,22 @@ void setup() {
   // Initialize I2C bus
   Wire.begin();
 
+  if (rtc.lostPower()) {
+#ifdef DEBUG    
+    Serial.print(F("POWER FAILED. Clearing flag..."));
+#endif    
+    rtc.lostPowerClear();
+    delay (1000);
+#ifdef DEBUG    
+    Serial.print(F("Reseting time..."));
+#endif
+    //       second  minute  hour  dayOfWeek  dayOfMonth  month  year
+    rtc.set( 0    ,  0    ,  0  ,  1       ,  1        ,  1   ,  19  );         
+#ifdef DEBUG    
+    showTime();
+#endif
+    
+  }
 
 }
 
@@ -179,7 +195,7 @@ void receiveMessage() {
       case '+': setupClock( str );
                 break;
 
-      case '@': changeLanguage( str);
+      case '@': controlClock( str);
                 break;          
 
       default:  strangePrint ( str );
@@ -197,7 +213,8 @@ void showTime() {
 #ifdef DEBUG  
   printTime(rtc.hour(),rtc.minute());
 #endif  
-  strangeTime(rtc.hour(),rtc.minute());
+  if (clockActive)
+     strangeTime(rtc.hour(),rtc.minute());
 }
 
 
@@ -274,9 +291,9 @@ void setupClock( String s) {
   if (*pStr != '\0')
     while (*pStr != '\0') {
       switch (*pStr++) {
-        case  'R': // Reset time -> 00:00:00 sunday 01/january/xxxx 
+        case  'R': // Reset time -> 00:00:00 sunday 01/january/2019 
                //        second  minute  hour  dayOfWeek  dayOfMonth  month  year
-               rtc.set( 0    ,  0    ,  0  ,  1       ,  1        ,  1   ,  00  ); 
+               rtc.set( 0    ,  0    ,  0  ,  1       ,  1        ,  1   ,  19  ); 
                break;
 
         // TIME Settings       
@@ -382,30 +399,35 @@ void setupClock( String s) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Setup the Language 
+// Control the Clock 
 // 
-void changeLanguage( String s) {
+void controlClock( String s) {
 
 uint8_t lang;
+bool languageChanged = false; 
   
 #ifdef DEBUG
   Serial.print(F("Change Language"));
   Serial.println();
-  
 #endif
-  bool languageChanged = false; 
 
   language = EEPROM.read(0x02);   
-  
-  // Iterate through message. Each command correspond to a command
+
+  // Iterate through message. Each character correspond to a command
   char *pStr = &s[0];
   if (*pStr != '\0')
     while (*pStr != '\0') {
+/*
+#ifdef DEBUG
+      Serial.print (F("["));
+      Serial.print (*pStr,HEX);
+      Serial.println (F("]"));
+#endif
+*/      
       switch (*pStr++) {
       
         case  'E':
-        case  'e': 
-        default:   language = _EN;  // English
+        case  'e': language = _EN;  // English
                    languageChanged = true;
                    break;
       
@@ -413,6 +435,16 @@ uint8_t lang;
         case  'b': language = _BR;  // Brazilian portuguese
                    languageChanged = true;
                    break;
+                   
+        case  'Q':
+        case  'q': clockActive = false;               
+                   break;
+
+        case  'V':
+        case  'v': clockActive = true;               
+                   break;
+
+                   
       } // switch
     } // while
 
@@ -442,9 +474,10 @@ void strangePrint ( String s) {
       putpixel (*pStr++);
   pixels.clear();
   pixels.show();
+
 //  delay (1000);
 #ifdef DEBUG  
-  Serial.println(F("Finis"));
+  Serial.println(F(".."));
 #endif
 }
 
@@ -492,6 +525,11 @@ void putpixel (char letra) {
   // Update the board 
   pixels.show();
   delay (_DelayLetra);
+
+  
+
+
+  
 }
 
 
@@ -506,7 +544,6 @@ void putpixel (char letra) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 void strangeTime(uint8_t h, uint8_t m) {
-
   switch(language) {
     case _EN: strangeTimeEN( h, m);
               break;          
@@ -514,7 +551,7 @@ void strangeTime(uint8_t h, uint8_t m) {
     case _BR: 
     default:  strangeTimeBR( h, m);
               break;
-    }
+    } // switch  
 }
 
 
@@ -527,6 +564,13 @@ void strangeTimeBR(uint8_t h, uint8_t m) {
   uint8_t d = m / 10 ;
   uint8_t u = m - (m / 10) * 10;
   uint8_t dv = d * 10 + u;
+
+
+
+    if ( (h>23) || (m>59) )  {
+    strangePrint("fuja para as montanhas" );
+    } else {
+
 
 
   // Horas
@@ -573,6 +617,7 @@ void strangeTimeBR(uint8_t h, uint8_t m) {
       }
     }
   }
+    } // else
 }
 
 
@@ -582,6 +627,14 @@ void strangeTimeEN(uint8_t h, uint8_t m) {
   
   uint8_t h2 = h;
   bool oclock=false;
+
+    if ( (h>23) || (m>59) )  {
+    strangePrint("run to the hills" );
+
+    } else {
+
+
+
   
   strangePrint("it is") ;
   
@@ -649,6 +702,7 @@ void strangeTimeEN(uint8_t h, uint8_t m) {
     }
 #endif    
   }
+    } // else
 }
 
 
@@ -669,9 +723,29 @@ void strangeTimeEN(uint8_t h, uint8_t m) {
 ////////////////////////////////////////////////////////////////////////////////
 // Print time - for debug purposes
 //
+void printTime(uint8_t h, uint8_t m) {
 
+  switch(language) {
+    case _EN: showTimeEN( h, m);
+              break;          
+
+    case _BR: 
+    default:  showTimeBR( h, m);
+              break;
+    }
+}
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Print time - for debug purposes
+//
 void displayTime(){
-  Serial.print("\nRTC DateTime: ");
+  Serial.print("\nRTC: ");
 
   Serial.print(rtc.day());
   Serial.print('/');
@@ -696,9 +770,9 @@ void displayTime(){
   }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Spell Time
+// Spell Time in English
 //
-void printTime(uint8_t h, uint8_t m) {
+void showTimeEN(uint8_t h, uint8_t m) {
   
   uint8_t h2 = h;
   bool oclock=false;
@@ -768,10 +842,11 @@ void printTime(uint8_t h, uint8_t m) {
     }  
   }
 }
+
  
- 
-// show time in portuguese
- 
+//////////////////////////////////////////////////////////////////////////////// 
+// Spell time in portuguese
+// 
 void showTimeBR(uint8_t h, uint8_t m) {
 
   uint8_t d = m / 10 ;
